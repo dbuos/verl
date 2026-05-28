@@ -450,6 +450,8 @@ class ActorRolloutRefWorker(Worker, DistProfilerExtension):
             self.config.actor.strategy == "megatron" and self.config.actor.megatron.router_replay.mode != "disabled"
         )
 
+        print(f"###DBUOS: Using actor strategy {config.actor.strategy}")
+
         DistProfilerExtension.__init__(
             self, DistProfiler(rank=self.rank, config=profiler_config, tool_config=tool_config)
         )

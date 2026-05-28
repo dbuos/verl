@@ -150,6 +150,7 @@ class TaskRunner:
 
         # Note: sync mode validation is now handled in RolloutConfig.__post_init__
         # Always use async worker since sync mode is deprecated and rejected
+        print(f"###DBUOS: Using the legacy worker implementation for actor rollout with strategy {config.actor_rollout_ref.actor.strategy}")
         if config.actor_rollout_ref.actor.strategy in {"fsdp", "fsdp2"}:
             from verl.workers.fsdp_workers import AsyncActorRolloutRefWorker
 
@@ -338,7 +339,10 @@ class TaskRunner:
             max_samples=config.data.get("val_max_samples", -1),
         )
         train_sampler = create_rl_sampler(config.data, train_dataset)
-
+        print(f"###DBUOS: Created train dataset with {len(train_dataset)} samples and val dataset with {len(val_dataset)} samples.")
+        # Print mappings between roles and worker classes, and resource pools for debugging purposes.
+        for k, v in self.mapping.items():
+            print(f"###DBUOS: Role {k} is mapped to {v}")
         # Initialize the PPO trainer.
         trainer = RayPPOTrainer(
             config=config,
