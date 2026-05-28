@@ -1289,6 +1289,7 @@ class RayPPOTrainer:
                     self.actor_rollout_wg.async_calls_finalize_fn_exec(blocking=False)
                 metrics = {}
                 timing_raw = {}
+                print(f"###DBUOS: >>> STEP {self.global_steps} START", flush=True)
 
                 with marked_timer("start_profile", timing_raw):
                     self._start_profiling(
@@ -1602,6 +1603,7 @@ class RayPPOTrainer:
                 # TODO: make a canonical logger that supports various backend
                 logger.log(data=metrics, step=self.global_steps)
 
+                print(f"###DBUOS: <<< STEP {self.global_steps} END  timing_raw={timing_raw}", flush=True)
                 progress_bar.update(1)
                 self.global_steps += 1
 

@@ -144,11 +144,13 @@ def _timer(name: str, timing_raw: dict[str, float]):
         name (str): The name/identifier for this timing measurement.
         timing_raw (Dict[str, float]): Dictionary to store timing information.
     """
+    print(f"###DBUOS: ┌─ ENTER phase '{name}'", flush=True)
     with Timer(name=name, logger=None) as timer:
         yield
     if name not in timing_raw:
         timing_raw[name] = 0
     timing_raw[name] += timer.last
+    print(f"###DBUOS: └─ EXIT  phase '{name}'  ({timer.last:.2f}s)", flush=True)
 
 
 @contextmanager
