@@ -806,7 +806,8 @@ class AgentLoopWorker:
         mm_processor_kwargs: Optional[dict[str, Any]] = None,
     ) -> torch.Tensor:
         """Compute position ids for multi-modal inputs."""
-        if self.processor is None:
+        # text-only OR non-M-RoPE multimodal (e.g. Gemma4) -> standard 1D positions
+        if self.processor is None or not hasattr(self.processor, "get_rope_index"):
             return compute_position_id_with_mask(attention_mask)  # (1, seq_len)
 
         multi_modal_kwargs = {
@@ -927,6 +928,8 @@ class AgentLoopWorker:
             )
             output.extra_fields["teacher_ids"] = teacher_ids
             output.extra_fields["teacher_logprobs"] = teacher_logprobs
+        else:
+            print("###DBUOS: Not doing teacher logprobs")
 
     def _postprocess(
         self,
