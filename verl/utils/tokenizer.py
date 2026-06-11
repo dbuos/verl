@@ -225,7 +225,9 @@ def hf_processor(name_or_path, **kwargs):
             case "MllamaProcessor":
                 pass  # MllamaProcessor and MllamaModel doesn't have get_rope_index property
             case "Gemma4Processor":
-                pass  # Gemma4Processor doesn't have get_rope_index property
+                # Gemma4 uses standard 1D RoPE -> no get_rope_index to bind. Disable Gemma strict image-count check (which Qwen's processor
+                # lacks).
+                processor.validate_inputs = lambda *args, **kwargs: None
             case _:
                 raise ValueError(f"Unsupported processor type: {processor.__class__.__name__}")
 

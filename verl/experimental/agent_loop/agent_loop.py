@@ -775,10 +775,6 @@ class AgentLoopWorker:
         videos = multi_modal_data.get("videos")
         audios = multi_modal_data.get("audios")
         current_text = self.tokenizer.decode(input_ids.squeeze(0), skip_special_tokens=True)
-        current_text_2 = self.tokenizer.decode(input_ids.squeeze(0), skip_special_tokens=False)
-
-        print("###DBUOS: current_text_True:", current_text)
-        print("###DBUOS: current_text_2:", current_text_2)
 
         multi_modal_inputs = build_multimodal_processor_inputs(
             self.processor,
