@@ -56,6 +56,7 @@ class SingleTurnAgentLoop(AgentLoopBase):
 
         # 3. generate sequences
         metrics = {}
+        print("####DBUOS: generate_sequences on the SingleTurnAgentLoop")
         with simple_timer("generate_sequences", metrics):
             output: TokenOutput = await self.server_manager.generate(
                 request_id=uuid4().hex,
