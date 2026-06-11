@@ -598,6 +598,8 @@ class AgentLoopWorker:
                 tools=ToolListWrap(self.tools),
             )
             output: AgentLoopOutput = await agent_loop.run(sampling_params, **kwargs)
+            print("###DBUOS agent_loop (generate) DONE")
+            print("###DBUOS output run, prompt_ids", len(output.response_ids), len(output.prompt_ids))
             return await self._agent_loop_postprocess(output, trajectory["validate"], **kwargs)
 
     def _pad_token_ids(
