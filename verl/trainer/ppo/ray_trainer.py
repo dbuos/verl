@@ -1455,6 +1455,34 @@ class RayPPOTrainer:
                         if reward_extra_infos_dict:
                             batch.non_tensor_batch.update({k: np.array(v) for k, v in reward_extra_infos_dict.items()})
 
+                            # ###DBUOS Option C: per-@reward-component train-step means. Recipe-blind —
+                            # aggregates the SAME reward_extra_info columns the pipeline reward entry emits
+                            # (no recipe import, no reward recompute). Per-data_source to avoid the zero-fill
+                            # dilution of multi-data_source combine recipes; mirrors validation's
+                            # val-core/<ds>/<reward>/mean@N naming. Wrapped defensively — a pure logging hook
+                            # must never crash a training run, whatever shape reward_extra_info takes.
+                            try:
+                                _ds = batch.non_tensor_batch.get("data_source", None)
+                                _ds = np.asarray(_ds) if _ds is not None else None
+                                if _ds is not None and _ds.dtype.kind in ("S", "U", "O"):
+                                    _ds = _ds.astype(str)
+                                for _k, _v in reward_extra_infos_dict.items():
+                                    if _k == "score":
+                                        continue
+                                    try:
+                                        _arr = np.asarray(_v, dtype=np.float32)
+                                    except (TypeError, ValueError):
+                                        continue
+                                    if not _arr.size:
+                                        continue
+                                    if _ds is None or _ds.shape != _arr.shape:
+                                        metrics[f"reward/{_k}/mean"] = float(np.mean(_arr))
+                                    else:
+                                        for _src in np.unique(_ds):
+                                            metrics[f"reward/{_src}/{_k}/mean"] = float(np.mean(_arr[_ds == _src]))
+                            except Exception as _e:
+                                print(f"###DBUOS Option C skipped: {type(_e).__name__}: {_e}", flush=True)
+
                         # compute rewards. apply_kl_penalty if available
                         if self.config.algorithm.use_kl_in_reward:
                             batch, kl_metrics = apply_kl_penalty(
