@@ -181,7 +181,18 @@ class Tracking:
     def log(self, data, step, backend=None):
         for default_backend, logger_instance in self.logger.items():
             if backend is None or default_backend in backend:
-                logger_instance.log(data=data, step=step)
+                if default_backend == "wandb":
+                    # ###DBUOS: commit each step eagerly so W&B shows the latest *completed* step
+                    # immediately, instead of buffering it until the next step logs (cuts the
+                    # ~2-step display lag to ~1). self.logger["wandb"] is the wandb module, so this
+                    # is wandb.log(data, step, commit=True). SAFE only because in RayPPOTrainer.fit
+                    # the main metrics log is the LAST wandb write of its step (val/generations at
+                    # tracking.py:~429 logs earlier in the same step; all scalar metrics fold into
+                    # this one `metrics` dict). Do NOT generalize to the experimental/sft trainers —
+                    # they make multiple same-step Tracking.log calls that commit=True would split.
+                    logger_instance.log(data=data, step=step, commit=True)
+                else:
+                    logger_instance.log(data=data, step=step)
 
     def __del__(self):
         if "wandb" in self.logger:
