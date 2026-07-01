@@ -262,6 +262,11 @@ def patch_forward_with_backends(
 
         forward_with_torch_backend_function = forward_with_torch_backend
         forward_with_triton_backend_function = forward_with_triton_backend
+    elif model.config.model_type == "qwen3_5":
+        from verl.models.transformers.qwen3_5 import forward_with_torch_backend, forward_with_triton_backend
+
+        forward_with_torch_backend_function = forward_with_torch_backend
+        forward_with_triton_backend_function = forward_with_triton_backend
     elif model.config.model_type == "glm4v":
         from verl.models.transformers.glm4v import forward_with_torch_backend, forward_with_triton_backend
 
