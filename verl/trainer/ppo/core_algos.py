@@ -2178,6 +2178,17 @@ def kl_penalty_forward(logprob: torch.FloatTensor, ref_logprob: torch.FloatTenso
         kld = (ratio - kl - 1).contiguous()
         return torch.clamp(kld, min=-10, max=10)
 
+    # [DBUOS] DPH-JS mass-covering Jensen-Shannon penalty (DPH-RL, arXiv 2509.07430;
+    # ref: seamoke/DPH-RL verl/trainer/ppo/core_algos.py:916 `js_low_var`). The repo omits
+    # the paper's leading 1/2 — we match the repo. u = pi_theta/pi_ref on the sampled token;
+    # generator f(u) = u*log(u) - (u+1)*log((u+1)/2), f(1)=0, f>=0. The clamp is ours
+    # (reference is unclamped): identity in-range, prevents 0*log(0)=NaN on ratio underflow.
+    if kl_penalty in ("js", "js_low_var"):
+        log_ratio = torch.clamp(logprob - ref_logprob, min=-20, max=20)
+        ratio = torch.exp(log_ratio)
+        js = ratio * log_ratio - (ratio + 1) * torch.log((ratio + 1) / 2)
+        return js.contiguous()
+
     if kl_penalty == "full":
         # so, here logprob and ref_logprob should contain the logits for every token in vocabulary
         raise NotImplementedError
