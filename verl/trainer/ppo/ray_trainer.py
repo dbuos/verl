@@ -436,6 +436,8 @@ class RayPPOTrainer:
             sample_gts = [item.non_tensor_batch.get("reward_model", {}).get("ground_truth", None) for item in batch]
 
             reward_extra_infos_to_dump = reward_extra_infos_dict.copy()
+            if "is_demo" in batch.non_tensor_batch:
+                reward_extra_infos_to_dump["is_demo"] = batch.non_tensor_batch["is_demo"].tolist()
             if "request_id" in batch.non_tensor_batch:
                 reward_extra_infos_dict.setdefault(
                     "request_id",
@@ -1313,6 +1315,18 @@ class RayPPOTrainer:
                     repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True
                 )
 
+                gt_demo = self.config.trainer.get("gt_inject_demo", False)
+                if gt_demo:
+                    n = self.config.actor_rollout_ref.rollout.n
+                    assert n > 1, "gt_inject_demo requires rollout.n > 1"
+                    names = np.array(
+                        [self.config.actor_rollout_ref.rollout.agent.default_agent_loop] * len(gen_batch_output),
+                        dtype=object,
+                    )
+                    # interleave=True: each prompt's n slots are contiguous; mark the last slot of each group
+                    names[n - 1 :: n] = "gt_demo_agent"
+                    gen_batch_output.non_tensor_batch["agent_name"] = names
+
                 is_last_step = self.global_steps >= self.total_training_steps
                 with marked_timer("step", timing_raw):
                     # generate a batch
@@ -1357,6 +1371,10 @@ class RayPPOTrainer:
                             del rm_scores, gen_baseline_batch, gen_baseline_output
                     # repeat to align with repeated responses in rollout
                     batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
+                    if gt_demo:
+                        is_demo = np.full(len(batch), False, dtype=object)
+                        is_demo[n - 1 :: n] = True
+                        batch.non_tensor_batch["is_demo"] = is_demo
                     batch = batch.union(gen_batch_output)
 
                     if "response_mask" not in batch.batch.keys():
@@ -1521,6 +1539,30 @@ class RayPPOTrainer:
                             norm_adv_by_std_in_grpo=norm_adv_by_std_in_grpo,
                             config=self.config.algorithm,
                         )
+
+                        if gt_demo and "is_demo" in batch.non_tensor_batch:
+                            seq_scores = batch.batch["token_level_scores"].sum(-1)
+                            dm = torch.from_numpy(batch.non_tensor_batch["is_demo"].astype(bool)).to(seq_scores.device)
+                            rmask = batch.batch["response_mask"]
+                            demo_adv = (batch.batch["advantages"][dm] * rmask[dm]).sum() / rmask[dm].sum().clamp(min=1)
+                            metrics.update(
+                                {
+                                    "gt_demo/count": int(dm.sum()),
+                                    "gt_demo/score/mean": seq_scores[dm].mean().item(),
+                                    "gt_demo/score/max": seq_scores[dm].max().item(),
+                                    "gt_demo/score/min": seq_scores[dm].min().item(),
+                                    "gt_demo/score_minus_rollout/mean": (
+                                        seq_scores[dm].mean() - seq_scores[~dm].mean()
+                                    ).item(),
+                                    "gt_demo/adv/mean": demo_adv.item(),
+                                }
+                            )
+                            if seq_scores[dm].abs().max().item() == 0.0:
+                                print(
+                                    "[gt_demo] WARNING: ALL demo scores are 0.0 this step — "
+                                    "remote reward likely falling back (check deployed app)",
+                                    flush=True,
+                                )
 
                     # update critic
                     if self.use_critic:

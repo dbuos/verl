@@ -203,6 +203,10 @@ trainer:
   #  mode: "auto", "enable", or "disable"
   use_legacy_worker_impl: auto
 
+  # Inject the ground-truth markdown (extra_info.gt_markdown) as the last rollout
+  # slot of each prompt group via the gt_demo_agent loop (train generation only)
+  gt_inject_demo: false
+
 # profiler configs
 global_profiler:
 
